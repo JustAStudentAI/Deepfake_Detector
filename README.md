@@ -1,9 +1,18 @@
 # Deepfake_Detector
 
-conda create -n tf_env python=3.9
+```
+conda create -n py_env python=3.9
+conda activate py_env
+```
 
-conda activate tf_env
+```
+conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+```
 
-pip install opencv-python numpy matplotlib tensorflow kaggle kagglehub scipy
+```
+pip install transformers matplotlib tqdm scikit-learn
+```
 
+```
 python deepfake_detector.py
+```
