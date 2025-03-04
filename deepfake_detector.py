@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from transformers import ViTForImageClassification, ViTImageProcessor
+from transformers import ViTForImageClassification, ViTImageProcessor # Hugging Face
 import matplotlib.pyplot as plt
 import random
 import time  # for CPU timing
@@ -62,7 +62,7 @@ def main():
     MODEL_NAME = "google/vit-base-patch16-224"
 
     # Base directory containing original subfolders (Train, Validation, Test, etc.)
-    BASE_DATASET_DIR = r"C:\Users\Over Yonder\Desktop\dataset\Dataset"
+    BASE_DATASET_DIR = r"C:\Users\<Your Username>\Desktop\dataset\Dataset"
 
     # 2. Combine Data from all "Fake" and "Real" subfolders
     all_files = get_combined_file_list(BASE_DATASET_DIR)
