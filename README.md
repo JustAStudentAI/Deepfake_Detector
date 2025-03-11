@@ -11,7 +11,7 @@ conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvi
 ```
 
 ```
-pip install transformers matplotlib tqdm scikit-learn
+conda install transformers matplotlib tqdm scikit-learn
 ```
 
 ```
@@ -27,7 +27,7 @@ conda activate deepfake_app_env
 ```
 
 ```
-pip install torch torchvision transformers matplotlib tqdm scikit-learn streamlit sqlalchemy pillow
+conda install torch torchvision transformers matplotlib tqdm scikit-learn streamlit sqlalchemy pillow
 ```
 
 ```
