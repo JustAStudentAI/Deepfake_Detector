@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from transformers import ViTForImageClassification, ViTImageProcessor # Hugging Face
+from transformers import ViTForImageClassification, ViTImageProcessor  # Hugging Face
 import matplotlib.pyplot as plt
 import random
 import time  # for CPU timing
@@ -11,7 +11,6 @@ from tqdm import tqdm
 import numpy as np
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
 from PIL import Image
-
 
 # Custom Data Handling: Combine and Split
 def get_combined_file_list(base_dir):
@@ -33,7 +32,6 @@ def get_combined_file_list(base_dir):
                 file_list.append((os.path.join(root, file), label))
     return file_list
 
-
 class CombinedImageDataset(Dataset):
     """
     Custom dataset that loads images from a list of (file_path, label) tuples.
@@ -52,13 +50,13 @@ class CombinedImageDataset(Dataset):
             image = self.transform(image)
         return image, label
 
-
 # Main Training, Evaluation, and Visualization Function
 def main():
     # 1. Parameters
     BATCH_SIZE = 32             
     EPOCHS = 10                 
-    LEARNING_RATE = 5e-5
+    LEARNING_RATE = 1e-4       # Increased LR from 5e-5 to 1e-4
+    WEIGHT_DECAY = 1e-2        # Weight decay for L2 regularization
     MODEL_NAME = "google/vit-base-patch16-224"
 
     # Base directory containing original subfolders (Train, Validation, Test, etc.)
@@ -118,7 +116,7 @@ def main():
     model.to(device)
 
     # 5. Optimizer, Loss Function, and Scheduler
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     criterion = nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=2, factor=0.5)
 
@@ -222,7 +220,7 @@ def main():
     test_loss, test_acc, y_true, y_pred = test_model(model, test_loader, criterion)
     print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_acc*100:.2f}%")
 
-    # 9a. Compute Additional Metrics (Precision, Recall, F1)
+    from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
     precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average='macro')
     precision_per_class, recall_per_class, f1_per_class, _ = precision_recall_fscore_support(y_true, y_pred, average=None)
     print("Precision (macro): {:.4f}".format(precision))
@@ -231,7 +229,6 @@ def main():
     for i, cls in enumerate(["Fake", "Real"]):
         print(f"  {cls}: Precision: {precision_per_class[i]:.4f}, Recall: {recall_per_class[i]:.4f}, F1: {f1_per_class[i]:.4f}")
 
-    # 9b. Plot Confusion Matrix
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(6,5))
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
@@ -255,7 +252,7 @@ def main():
     torch.save(model.state_dict(), "deepfake_vit_model.pth")
     print("Model saved as 'deepfake_vit_model.pth'")
 
-    # 11. Display Sample Predictions
+    # 11. Display Sample Predictions from Test Set
     def display_separated_predictions(model, loader, num_each=10):
         """
         Displays sample predictions from the test set:
@@ -267,7 +264,6 @@ def main():
           - actual label.
         Randomly samples 100 images from the test set.
         """
-        # For our custom dataset, file_list is stored as an attribute
         sample_indices = random.sample(range(len(loader.dataset)), min(100, len(loader.dataset)))
         correct_samples = []
         incorrect_samples = []
@@ -313,7 +309,6 @@ def main():
         plt.show()
 
     display_separated_predictions(model, test_loader, num_each=10)
-
 
 if __name__ == "__main__":
     import torch.multiprocessing as mp
