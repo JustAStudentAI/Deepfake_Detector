@@ -27,7 +27,7 @@ conda activate deepfake_app_env
 ```
 
 ```
-conda install torch torchvision transformers matplotlib tqdm scikit-learn streamlit sqlalchemy pillow
+pip install torch torchvision transformers matplotlib tqdm scikit-learn streamlit sqlalchemy pillow
 ```
 
 ```
