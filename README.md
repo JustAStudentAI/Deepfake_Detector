@@ -1,6 +1,8 @@
 # Deepfake_Detector
 **To run the model**
 
+Download Kaggle dataset: https://www.kaggle.com/datasets/manjilkarki/deepfake-and-real-images
+
 ```
 conda create -n deepfake_model_env python=3.9
 conda activate deepfake_model_env
