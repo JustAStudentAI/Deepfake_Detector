@@ -220,7 +220,6 @@ def main():
     test_loss, test_acc, y_true, y_pred = test_model(model, test_loader, criterion)
     print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_acc*100:.2f}%")
 
-    from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
     precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average='macro')
     precision_per_class, recall_per_class, f1_per_class, _ = precision_recall_fscore_support(y_true, y_pred, average=None)
     print("Precision (macro): {:.4f}".format(precision))
