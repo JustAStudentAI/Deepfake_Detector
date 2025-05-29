@@ -1,36 +1,22 @@
 import os
+import getpass                                  
+import shutil                                   
+import zipfile                                  
+import time
+import random
+from PIL import Image
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from transformers import ViTForImageClassification, ViTImageProcessor  # Hugging Face
-import matplotlib.pyplot as plt
-import random
-import time  # for CPU timing
+from transformers import ViTForImageClassification, ViTImageProcessor
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
-from PIL import Image
+import torch.multiprocessing as mp
 
-# Custom Data Handling: Combine and Split
-def get_combined_file_list(base_dir):
-    """
-    Recursively search through base_dir and return a list of tuples (file_path, label)
-    for every image found in a folder named exactly "Fake" or "Real".
-    Label: 0 for Fake, 1 for Real.
-    """
-    file_list = []
-    valid_extensions = ('.jpg', '.jpeg', '.png')
-    # Walk through the entire directory tree
-    for root, dirs, files in os.walk(base_dir):
-        folder = os.path.basename(root)
-        if folder not in ["Fake", "Real"]:
-            continue  # Skip folders that are not named "Fake" or "Real"
-        label = 0 if folder == "Fake" else 1
-        for file in files:
-            if file.lower().endswith(valid_extensions):
-                file_list.append((os.path.join(root, file), label))
-    return file_list
 
 class CombinedImageDataset(Dataset):
     """
@@ -44,27 +30,64 @@ class CombinedImageDataset(Dataset):
         return len(self.file_list)
 
     def __getitem__(self, idx):
-        file_path, label = self.file_list[idx]
-        image = Image.open(file_path).convert("RGB")
+        path, label = self.file_list[idx]
+        img = Image.open(path).convert("RGB")
         if self.transform:
-            image = self.transform(image)
-        return image, label
+            img = self.transform(img)
+        return img, label
+
+def extract_zip_to_separated_folders(zip_path, out_dir):
+    """
+    Unzip archive.zip which has subfolders Fake/ and Real/,
+    placing each image into out_dir/Fake/ or out_dir/Real/.
+    """
+    if os.path.exists(out_dir):
+        print(f"[extract] '{out_dir}' already exists, skipping extraction.")
+        return
+    print(f"[extract] Unzipping {zip_path} → {out_dir}")
+    with zipfile.ZipFile(zip_path, 'r') as archive:
+        for member in archive.namelist():
+            parts = member.split('/')
+            if len(parts) < 2 or parts[-2] not in ("Fake", "Real"):
+                continue
+            if not member.lower().endswith(('.jpg','.jpeg','.png')):
+                continue
+            target_folder = os.path.join(out_dir, parts[-2])
+            os.makedirs(target_folder, exist_ok=True)
+            dest = os.path.join(target_folder, os.path.basename(member))
+            with archive.open(member) as src, open(dest, 'wb') as dst:
+                shutil.copyfileobj(src, dst)
+    print("Done zip extraction.")
+
+def get_all_files(extract_dir):
+    valid_exts = ('.jpg', '.jpeg', '.png')
+    all_files = []                                    
+    for root, _, files in os.walk(extract_dir):       
+        folder = os.path.basename(root)               
+        if folder not in ("Fake", "Real"):            
+            continue                                  
+        label = 0 if folder == "Fake" else 1          
+        for file_name in files:                           
+            if file_name.lower().endswith(valid_exts):    
+                all_files.append((os.path.join(root, file_name), label))
+
+    return all_files
 
 # Main Training, Evaluation, and Visualization Function
 def main():
-    # 1. Parameters
+    # 1. Parameters, path, & extraction
     BATCH_SIZE = 32             
-    EPOCHS = 10                 
-    LEARNING_RATE = 1e-4       # Increased LR from 5e-5 to 1e-4
+    EPOCHS = 1                
+    LEARNING_RATE = 1e-4     
     WEIGHT_DECAY = 1e-2        # Weight decay for L2 regularization
     MODEL_NAME = "google/vit-base-patch16-224"
 
-    # Base directory containing original subfolders (Train, Validation, Test, etc.)
-    BASE_DATASET_DIR = r"C:\Users\<Your Username>\Desktop\dataset\Dataset"
+    username = getpass.getuser()
+    zip_path = f"C:/Users/{username}/Desktop/archive.zip"
+    extract_dir = f"C:/Users/{username}/Desktop/extracted_archive"
+    extract_zip_to_separated_folders(zip_path, extract_dir)
 
-    # 2. Combine Data from all "Fake" and "Real" subfolders
-    all_files = get_combined_file_list(BASE_DATASET_DIR)
-    print(f"Found total {len(all_files)} images in 'Fake' and 'Real' subfolders.")
+    all_files = get_all_files(extract_dir)
 
     # Randomly shuffle and split data: 70% train, 15% val, 15% test
     random.shuffle(all_files)
@@ -148,7 +171,10 @@ def main():
                 correct += (outputs.argmax(dim=1) == labels).sum().item()
         return total_loss / len(loader), correct / len(loader.dataset)
 
-    # 8. Training Loop with Conditional Timing
+    # 8. Training Loop
+    PATIENCE = 3
+    best_val_loss = float("inf")
+    trigger = 0
     train_losses, val_losses = [], []
     train_accuracies, val_accuracies = [], []
     for epoch in range(EPOCHS):
@@ -178,6 +204,17 @@ def main():
         print(f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_acc*100:.2f}%")
         print(f"Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc*100:.2f}%")
         print(f"Epoch time: {epoch_time:.2f} seconds")
+        # Early stoppage
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            trigger = 0
+        else:
+            trigger += 1
+            print(f"No improvement in validation loss. Early stopping trigger is {trigger}/{PATIENCE}.")
+            if trigger >= PATIENCE:
+                print("Early stopping has been triggered.")
+                break
+
 
     # Plot training curves
     epochs_range = range(1, EPOCHS + 1)
@@ -310,7 +347,6 @@ def main():
     display_separated_predictions(model, test_loader, num_each=10)
 
 if __name__ == "__main__":
-    import torch.multiprocessing as mp
     mp.set_start_method('spawn', force=True)
     torch.multiprocessing.freeze_support()
     main()
